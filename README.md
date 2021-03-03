@@ -1,4 +1,4 @@
-#Prediction of ECG Abnormality Based on Recursive Neural Network
+ <font size=30> Prediction of ECG Abnormality Based on Recursive Neural Network </font>   
 This project is based on the mxnet framework  
 >Directory:  
     ---ECG5000  
