@@ -4,10 +4,10 @@ This project is based on the mxnet framework
 >Directory:  
     ---ECG5000  
     ---mode  
-    ---train_vae.py
-    ---train_lstm.py
-    ---train_vae_lstm.py
-    ---README.md
+    ---train_vae.py  
+    ---train_lstm.py   
+    ---train_vae_lstm.py  
+    ---README.md  
 
 ECG5000:  
 > 1.A folder where data is stored  
