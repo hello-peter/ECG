@@ -5,7 +5,7 @@ LSTMCell = namedtuple('LSTMCell_return',['Ct','h'])
 prev_param = namedtuple('prev_param',['c','h'])
 
 class lstm:
-    def __init__(self,input,seq_len,batch_size,num_hidden,num_layer,num_dim,init_prev,mean_z,ctx):
+    def __init__(self,input,seq_len,batch_size,num_hidden,num_layer,num_dim,init_prev,ctx):
         '''
 
         input shape must be (seq_len,batch_size,num_dim)
@@ -21,7 +21,7 @@ class lstm:
         self.seq_len = seq_len
         self.ctx = ctx
         self.init_prev = init_prev
-        self.mean_z = mean_z  #vae hidden state z
+
 
     #get parameter function
     #get the lstm init satate function
@@ -41,19 +41,17 @@ class lstm:
         param type must be a dict
         
         '''
-        def _calculate(indata,param,prev_param,num_hidden,mean_z):
-            i2h = mx.nd.dot(indata,param.get('i2h_weight')) + param.get('i2h_bias')
-            h2h = mx.nd.dot(prev_param.h,param.get('h2h_weight')) + param.get('h2h_bias')
-            z2h = mx.nd.dot(mean_z,param.get('z_weight')) + param.get('z_bias')
-            return i2h + h2h + z2h
-        forget_gate = mx.nd.Activation(data = _calculate(indata,param[0],prev_param,num_hidden,mean_z),act_type = 'sigmoid')
-        input_gate = mx.nd.Activation(data = _calculate(indata,param[1],prev_param,num_hidden,mean_z),act_type = 'sigmoid')
-        output_gate = mx.nd.Activation(data = _calculate(indata,param[2],prev_param,num_hidden,mean_z),act_type='sigmoid')
+        def _calculate(indata,param,prev_param,num_hidden):
+            i2h = mx.nd.dot(indata,param.get('i2h_weight'))+param.get('i2h_bias')
+            h2h = mx.nd.dot(prev_param.h,param.get('h2h_weight'))+param.get('h2h_bias')
+            return i2h+h2h
+        forget_gate = mx.nd.Activation(data = _calculate(indata,param[0],prev_param,num_hidden),act_type = 'sigmoid')
+        input_gate = mx.nd.Activation(data = _calculate(indata,param[1],prev_param,num_hidden),act_type = 'sigmoid')
+        output_gate = mx.nd.Activation(data = _calculate(indata,param[2],prev_param,num_hidden),act_type='sigmoid')
         Ct_cite = mx.nd.Activation(data = _calculate(indata,param[3],prev_param,num_hidden),act_type = 'tanh')
         Ct = (input_gate * Ct_cite) + (forget_gate * prev_param.c)
         h = output_gate * mx.nd.Activation(data = Ct,act_type = 'tanh')
         return LSTMCell(Ct=Ct,h = h)
-    
     #forward calculate function
     def forward(self,parameter):
         input = self.input
@@ -74,7 +72,7 @@ class lstm:
         return hidden
 
 
-def get_lstm_param(batch_size,num_hidden,num_layer,num_dim,num_latent,ctx):
+def get_lstm_param(batch_size,num_hidden,num_layer,num_dim,ctx):
     params = list()
 
     def _getparam(shape):
@@ -88,9 +86,7 @@ def get_lstm_param(batch_size,num_hidden,num_layer,num_dim,num_latent,ctx):
                         'i2h_weight' : _getparam(shape = (num_dim,num_hidden)),
                         'i2h_bias' : _getzero(shape = (num_hidden,)),
                         'h2h_weight' : _getparam(shape = (num_hidden,num_hidden)),
-                        'h2h_bias' : _getzero(shape = (num_hidden,)),
-                        'z_weight' : _getparam(shape = (num_latent,num_hidden)),
-                        'z_bias' : _getzero(shape = num_hidden,)
+                        'h2h_bias' : _getzero(shape = (num_hidden,))
                 }
 
     for _ in range(num_layer):
@@ -103,11 +99,11 @@ def get_lstm_param(batch_size,num_hidden,num_layer,num_dim,num_latent,ctx):
             w_b.get('i2h_bias').attach_grad()
             w_b.get('h2h_weight').attach_grad()
             w_b.get('h2h_bias').attach_grad()
-            w_b.get('z_weight').attach_grad()
-            w_b.get('z_bias').attach_grad()
             parama.append(w_b)
         params.append(parama)
     return params
+
+
 
 
 
