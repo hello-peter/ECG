@@ -33,7 +33,7 @@ class vae_lstm:
         return [c,h]
 
     #lstm cell function
-    def lstm_cell(self,indata,prev_param,param,num_hidden):
+    def lstm_cell(self,indata,prev_param,param,num_hidden,mean_z):
         '''
         
         indata shape must be (batch_size,num_dim)
@@ -41,14 +41,15 @@ class vae_lstm:
         param type must be a dict
         
         '''
-        def _calculate(indata,param,prev_param,num_hidden):
-            i2h = mx.nd.dot(indata,param.get('i2h_weight'))+param.get('i2h_bias')
-            h2h = mx.nd.dot(prev_param.h,param.get('h2h_weight'))+param.get('h2h_bias')
-            return i2h+h2h
-        forget_gate = mx.nd.Activation(data = _calculate(indata,param[0],prev_param,num_hidden),act_type = 'sigmoid')
-        input_gate = mx.nd.Activation(data = _calculate(indata,param[1],prev_param,num_hidden),act_type = 'sigmoid')
-        output_gate = mx.nd.Activation(data = _calculate(indata,param[2],prev_param,num_hidden),act_type='sigmoid')
-        Ct_cite = mx.nd.Activation(data = _calculate(indata,param[3],prev_param,num_hidden),act_type = 'tanh')
+        def _calculate(indata,param,prev_param,num_hidden,mean_z):
+            i2h = mx.nd.dot(indata,param.get('i2h_weight')) + param.get('i2h_bias')
+            h2h = mx.nd.dot(prev_param.h,param.get('h2h_weight')) + param.get('h2h_bias')
+            z2h = mx.nd.dot(mean_z,param.get('z_weight')) + param.get('z_bias')
+            return i2h + h2h + z2h
+        forget_gate = mx.nd.Activation(data = _calculate(indata,param[0],prev_param,num_hidden,mean_z),act_type = 'sigmoid')
+        input_gate = mx.nd.Activation(data = _calculate(indata,param[1],prev_param,num_hidden,mean_z),act_type = 'sigmoid')
+        output_gate = mx.nd.Activation(data = _calculate(indata,param[2],prev_param,num_hidden,mean_z),act_type='sigmoid')
+        Ct_cite = mx.nd.Activation(data = _calculate(indata,param[3],prev_param,num_hidden,mean_z),act_type = 'tanh')
         Ct = (input_gate * Ct_cite) + (forget_gate * prev_param.c)
         h = output_gate * mx.nd.Activation(data = Ct,act_type = 'tanh')
         return LSTMCell(Ct=Ct,h = h)
@@ -62,10 +63,11 @@ class vae_lstm:
         Forward_Hidden = list()
         for seq in range(seq_len):
             x = self.input[seq]
+            z = self.mean_z[seq]
             unroll_hidden = list()
             for layer in range(num_layer):
                 param = parameter[layer]
-                Lstm_State = self.lstm_cell(indata = x,prev_param = Prevstate,param = param,num_hidden = self.num_hidden)
+                Lstm_State = self.lstm_cell(indata = x,prev_param = Prevstate,param = param,num_hidden = self.num_hidden,mean_z = z)
                 Prevstate = prev_param(c = Lstm_State.Ct,h = Lstm_State.h)
                 unroll_hidden.append(Lstm_State.h)
             Forward_Hidden.append(unroll_hidden[-1])
@@ -73,7 +75,7 @@ class vae_lstm:
         return hidden
 
 
-def get_vae_lstm_param(batch_size,num_hidden,num_layer,num_dim,ctx):
+def get_vae_lstm_param(batch_size,num_hidden,num_layer,num_latent,num_dim,ctx):
     params = list()
 
     def _getparam(shape):
@@ -87,7 +89,9 @@ def get_vae_lstm_param(batch_size,num_hidden,num_layer,num_dim,ctx):
                         'i2h_weight' : _getparam(shape = (num_dim,num_hidden)),
                         'i2h_bias' : _getzero(shape = (num_hidden,)),
                         'h2h_weight' : _getparam(shape = (num_hidden,num_hidden)),
-                        'h2h_bias' : _getzero(shape = (num_hidden,))
+                        'h2h_bias' : _getzero(shape = (num_hidden,)),
+                        'z_weight' : _getparam(shape = (num_latent,num_hidden)),
+                        'z_bias' : _getzero(shape = num_hidden,)
                 }
 
     for _ in range(num_layer):
@@ -100,6 +104,8 @@ def get_vae_lstm_param(batch_size,num_hidden,num_layer,num_dim,ctx):
             w_b.get('i2h_bias').attach_grad()
             w_b.get('h2h_weight').attach_grad()
             w_b.get('h2h_bias').attach_grad()
+            w_b.get('z_weight').attach_grad()
+            w_b.get('z_bias').attach_grad()
             parama.append(w_b)
         params.append(parama)
     return params
