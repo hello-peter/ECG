@@ -32,7 +32,7 @@ introduce vae_lstm:
 
 Test accuracy:
 >LSTM : 95.2953%  
->VAE_LSTM : 97.2973%   
+>VAE_LSTM : 98.4985%   
 
   [1]: http://timeseriesclassification.com/description.php?Dataset=ECG5000# ECG
 
