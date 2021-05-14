@@ -159,7 +159,7 @@ if __name__ == "__main__":
     vae_num_layer = 40 #Abandon parameter
     vae_epochs = 10
     lstm_num_hidden = 8
-    lstm_num_layer = 20
+    lstm_num_layer = 25
     lstm_num_category = 5
     lstm_epochs = 5
     
